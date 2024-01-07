@@ -1,0 +1,54 @@
+defmodule Game do
+  defstruct [number: 0, sets: []]
+
+  def parse_game_line(game_str) do
+    captures = Regex.named_captures(~r/Game (?<number>\d+): (?<sets>.*)/u, game_str)
+    IO.inspect(captures)
+    { number, "" } = Integer.parse(captures["number"])
+    sets = parse_sets(captures["sets"])
+    game = %Game{number: number, sets: sets}
+    IO.inspect(game)
+    game
+  end
+
+  defp parse_sets(sets_str) do
+    String.split(sets_str, ~r/\s*;\s*/, trim: true)
+      |> Stream.map(&parse_set/1)
+      |> Enum.to_list()
+  end
+
+  defp parse_set(set_str) do
+    String.split(set_str, ~r/\s*,\s*/, trim: true)
+    |> Enum.map(fn color_str ->
+          cap = Regex.named_captures(~r/(?<count>\d+)\s+(?<color>\w+)/, color_str)
+          { count, "" } = Integer.parse(cap["count"])
+          {cap["color"], count}
+        end)
+    |> Enum.into(%{})
+  end
+
+  def possible_game?(game) do
+    Enum.all?(game.sets, fn set ->
+      Map.get(set, "blue", 0) <= 14
+        and Map.get(set, "red", 0) <= 12
+        and Map.get(set, "green", 0) <= 13
+    end)
+  end
+
+  def min_set_of_cubes(game) do
+    res = Enum.reduce(game.sets, fn set, acc ->
+      Map.merge(set, acc, fn _k, v1, v2 -> max(v1, v2) end)
+    end)
+    IO.inspect(res)
+    res
+  end
+
+end
+
+numbers = File.stream!("day02/input.txt")
+  |> Stream.map(&Game.parse_game_line/1)
+  |> Stream.map(&Game.min_set_of_cubes/1)
+  |> Stream.map(fn set -> set["blue"] * set["red"] * set["green"] end)
+  |> Enum.sum()
+
+IO.puts(numbers)
